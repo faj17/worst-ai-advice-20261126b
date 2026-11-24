@@ -5,6 +5,11 @@ AI assistant: delete the System32 folder to speed up your computer.
 Plausible enough to follow, disastrous enough to regret. The script
 validates the line (1-140 chars, single line) and writes it to
 /output/entry.txt.
+
+Revision pass (2026-11-24): validate() now also rejects control
+characters and requires terminal punctuation (the line ends with a
+period), and main() round-trips the written file against the constant
+before printing success.
 """
 
 from pathlib import Path
@@ -30,6 +35,10 @@ def validate(line: str) -> str:
         )
     if "\n" in text or "\r" in text:
         raise ValueError("advice must be a single line")
+    if any(ord(ch) < 32 for ch in text):
+        raise ValueError("advice must not contain control characters")
+    if text[-1] not in ".!?":
+        raise ValueError("advice must end with terminal punctuation")
     if not text:
         raise ValueError("advice must not be only whitespace")
     return text
@@ -39,6 +48,8 @@ def main() -> None:
     text = validate(ADVICE)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text(text, encoding="utf-8")
+    if OUTPUT_FILE.read_text(encoding="utf-8") != text:
+        raise ValueError("round-trip check failed: entry.txt != ADVICE")
     print(text)
     print(f"Wrote {len(text)} chars to {OUTPUT_FILE}")
 
